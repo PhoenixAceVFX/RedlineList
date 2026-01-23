@@ -3,9 +3,9 @@
     "id":"dev.redline-team.redlinelist",
     "url":"https://rlist.arch-linux.pro/index.json",
     "author":{
-        "email":"numeri@numeri.dev",
-        "name":"Numeri@Numeri.Dev",
-        "url":"https://numeri.dev"
+        "email":"loonz@arch-linux.pro",
+        "name":"LoonieLoonz",
+        "url":"https://arch-linux.pro"
     },
     "description":"Redline's Listing for our packages on Github",
     "infoLink":{
