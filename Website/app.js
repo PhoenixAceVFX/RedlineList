@@ -111,14 +111,16 @@ const setTheme = () => {
   const rowMenuButtons = document.querySelectorAll('.rowMenuButton');
   rowMenuButtons.forEach(button => {
     button.addEventListener('click', e => {
+      const menuButton = e.currentTarget;
       if (rowMoreMenu?.hidden) {
-        rowMoreMenu.style.top = `${e.clientY + e.target.clientHeight}px`;
-        rowMoreMenu.style.left = `${e.clientX - 120}px`;
+        const buttonBounds = menuButton.getBoundingClientRect();
+        rowMoreMenu.style.top = `${buttonBounds.bottom + window.scrollY}px`;
+        rowMoreMenu.style.left = `${buttonBounds.left + window.scrollX - 120}px`;
         rowMoreMenu.hidden = false;
 
         const downloadLink = rowMoreMenu.querySelector('#rowMoreMenuDownload');
         const downloadListener = () => {
-          window.open(e?.target?.dataset?.packageUrl, '_blank');
+          window.open(menuButton.dataset.packageUrl, '_blank');
         }
         downloadLink.addEventListener('change', () => {
           downloadListener();
@@ -161,7 +163,7 @@ const setTheme = () => {
   const rowPackageInfoButton = document.querySelectorAll('.rowPackageInfoButton');
   rowPackageInfoButton.forEach((button) => {
     button.addEventListener('click', e => {
-      const packageId = e.target.dataset?.packageId;
+      const packageId = e.currentTarget.dataset.packageId;
       const packageInfo = PACKAGES?.[packageId];
       if (!packageInfo) {
         console.error(`Did not find package ${packageId}. Packages available:`, PACKAGES);
