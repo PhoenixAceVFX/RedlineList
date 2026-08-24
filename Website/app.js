@@ -1,5 +1,3 @@
-import { baseLayerLuminance, StandardLuminance } from 'https://unpkg.com/@fluentui/web-components';
-
 const LISTING_URL = "{{ listingInfo.Url }}";
 
 const PACKAGES = {
@@ -29,205 +27,117 @@ const PACKAGES = {
 {{~ end ~}}
 };
 
-const setTheme = () => {
-  const isDarkTheme = () => window.matchMedia("(prefers-color-scheme: dark)").matches;
-  if (isDarkTheme()) {
-    baseLayerLuminance.setValueFor(document.documentElement, StandardLuminance.DarkMode);
-  } else {
-    baseLayerLuminance.setValueFor(document.documentElement, StandardLuminance.LightMode);
+const byId = (id) => document.getElementById(id);
+
+const copyField = async (fieldId, button) => {
+  const field = byId(fieldId);
+  if (!field) return;
+
+  try {
+    await navigator.clipboard.writeText(field.value);
+  } catch {
+    field.select();
+    document.execCommand('copy');
   }
-}
+
+  const originalLabel = button.textContent;
+  button.textContent = 'Copied';
+  setTimeout(() => { button.textContent = originalLabel; }, 1200);
+};
+
+const addRepository = () => {
+  window.location.assign(`vcc://vpm/addRepo?url=${encodeURIComponent(LISTING_URL)}`);
+};
 
 (() => {
-  setTheme();
+  const packageGrid = byId('packageGrid');
+  const searchInput = byId('searchInput');
+  const addListingToVccHelp = byId('addListingToVccHelp');
+  const packageInfoModal = byId('packageInfoModal');
+  const rowMoreMenu = byId('rowMoreMenu');
+  let activeZipUrl = '';
 
-  window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
-    setTheme();
-  });
-
-  const packageGrid = document.getElementById('packageGrid');
-
-  const searchInput = document.getElementById('searchInput');
-  searchInput.addEventListener('input', ({ target: { value = '' }}) => {
-    const items = packageGrid.querySelectorAll('fluent-data-grid-row[row-type="default"]');
-    items.forEach(item => {
-      if (value === '') {
-        item.style.display = 'grid';
-        return;
-      }
-      if (
-        item.dataset?.packageName?.toLowerCase()?.includes(value.toLowerCase()) ||
-        item.dataset?.packageId?.toLowerCase()?.includes(value.toLowerCase())
-      ) {
-        item.style.display = 'grid';
-      } else {
-        item.style.display = 'none';
-      }
+  searchInput?.addEventListener('input', ({ target: { value = '' } }) => {
+    const query = value.trim().toLowerCase();
+    packageGrid?.querySelectorAll('fluent-data-grid-row[row-type="default"]').forEach((item) => {
+      const match = !query || item.dataset.packageName?.toLowerCase().includes(query) || item.dataset.packageId?.toLowerCase().includes(query);
+      item.style.display = match ? 'grid' : 'none';
     });
   });
 
-  const urlBarHelpButton = document.getElementById('urlBarHelp');
-  const addListingToVccHelp = document.getElementById('addListingToVccHelp');
-  urlBarHelpButton.addEventListener('click', () => {
-    addListingToVccHelp.hidden = false;
-  });
-  const addListingToVccHelpClose = document.getElementById('addListingToVccHelpClose');
-  addListingToVccHelpClose.addEventListener('click', () => {
-    addListingToVccHelp.hidden = true;
-  });
+  byId('vccAddRepoButton')?.addEventListener('click', addRepository);
+  document.querySelectorAll('.rowAddToVccButton').forEach((button) => button.addEventListener('click', addRepository));
 
-  const vccListingInfoUrlFieldCopy = document.getElementById('vccListingInfoUrlFieldCopy');
-  vccListingInfoUrlFieldCopy.addEventListener('click', () => {
-    const vccUrlField = document.getElementById('vccListingInfoUrlField');
-    vccUrlField.select();
-    navigator.clipboard.writeText(vccUrlField.value);
-    vccUrlFieldCopy.appearance = 'accent';
-    setTimeout(() => {
-      vccUrlFieldCopy.appearance = 'neutral';
-    }, 1000);
-  });
+  byId('vccUrlFieldCopy')?.addEventListener('click', (event) => copyField('vccUrlField', event.currentTarget));
+  byId('vccListingInfoUrlFieldCopy')?.addEventListener('click', (event) => copyField('vccListingInfoUrlField', event.currentTarget));
+  byId('packageInfoVccUrlFieldCopy')?.addEventListener('click', (event) => copyField('packageInfoVccUrlField', event.currentTarget));
 
-  const vccAddRepoButton = document.getElementById('vccAddRepoButton');
-  vccAddRepoButton.addEventListener('click', () => window.location.assign(`vcc://vpm/addRepo?url=${encodeURIComponent(LISTING_URL)}`));
+  byId('urlBarHelp')?.addEventListener('click', () => { addListingToVccHelp.hidden = false; });
+  byId('packageInfoListingHelp')?.addEventListener('click', () => { addListingToVccHelp.hidden = false; });
+  byId('addListingToVccHelpClose')?.addEventListener('click', () => { addListingToVccHelp.hidden = true; });
+  byId('packageInfoModalClose')?.addEventListener('click', () => { packageInfoModal.hidden = true; });
 
-  const vccUrlFieldCopy = document.getElementById('vccUrlFieldCopy');
-  vccUrlFieldCopy.addEventListener('click', () => {
-    const vccUrlField = document.getElementById('vccUrlField');
-    vccUrlField.select();
-    navigator.clipboard.writeText(vccUrlField.value);
-    vccUrlFieldCopy.appearance = 'accent';
-    setTimeout(() => {
-      vccUrlFieldCopy.appearance = 'neutral';
-    }, 1000);
+  document.querySelectorAll('.rowMenuButton').forEach((button) => {
+    button.addEventListener('click', (event) => {
+      const bounds = event.currentTarget.getBoundingClientRect();
+      activeZipUrl = event.currentTarget.dataset.packageUrl || '';
+      rowMoreMenu.style.top = `${bounds.bottom + window.scrollY}px`;
+      rowMoreMenu.style.left = `${bounds.left + window.scrollX - 120}px`;
+      rowMoreMenu.hidden = false;
+    });
   });
 
-  const rowMoreMenu = document.getElementById('rowMoreMenu');
-  const hideRowMoreMenu = e => {
-    if (rowMoreMenu.contains(e.target)) return;
-    document.removeEventListener('click', hideRowMoreMenu);
+  byId('rowMoreMenuDownload')?.addEventListener('click', () => {
+    if (activeZipUrl) window.open(activeZipUrl, '_blank', 'noopener');
     rowMoreMenu.hidden = true;
-  }
-
-  const rowMenuButtons = document.querySelectorAll('.rowMenuButton');
-  rowMenuButtons.forEach(button => {
-    button.addEventListener('click', e => {
-      const menuButton = e.currentTarget;
-      if (rowMoreMenu?.hidden) {
-        const buttonBounds = menuButton.getBoundingClientRect();
-        rowMoreMenu.style.top = `${buttonBounds.bottom + window.scrollY}px`;
-        rowMoreMenu.style.left = `${buttonBounds.left + window.scrollX - 120}px`;
-        rowMoreMenu.hidden = false;
-
-        const downloadLink = rowMoreMenu.querySelector('#rowMoreMenuDownload');
-        const downloadListener = () => {
-          window.open(menuButton.dataset.packageUrl, '_blank');
-        }
-        downloadLink.addEventListener('change', () => {
-          downloadListener();
-          downloadLink.removeEventListener('change', downloadListener);
-        });
-
-        setTimeout(() => {
-          document.addEventListener('click', hideRowMoreMenu);
-        }, 1);
-      }
-    });
   });
 
-  const packageInfoModal = document.getElementById('packageInfoModal');
-  const packageInfoModalClose = document.getElementById('packageInfoModalClose');
-  packageInfoModalClose.addEventListener('click', () => {
-    packageInfoModal.hidden = true;
+  document.addEventListener('click', (event) => {
+    if (!rowMoreMenu.hidden && !rowMoreMenu.contains(event.target) && !event.target.closest('.rowMenuButton')) rowMoreMenu.hidden = true;
   });
 
-  // Fluent dialogs use nested shadow-rooted elements, so we need to use JS to style them
-  const modalControl = packageInfoModal.shadowRoot.querySelector('.control');
-  modalControl.style.maxHeight = "90%";
-  modalControl.style.transition = 'height 0.2s ease-in-out';
-  modalControl.style.overflowY = 'hidden';
+  const packageInfoName = byId('packageInfoName');
+  const packageInfoId = byId('packageInfoId');
+  const packageInfoVersion = byId('packageInfoVersion');
+  const packageInfoDescription = byId('packageInfoDescription');
+  const packageInfoAuthor = byId('packageInfoAuthor');
+  const packageInfoDependencies = byId('packageInfoDependencies');
+  const packageInfoKeywords = byId('packageInfoKeywords');
+  const packageInfoLicense = byId('packageInfoLicense');
 
-  const packageInfoName = document.getElementById('packageInfoName');
-  const packageInfoId = document.getElementById('packageInfoId');
-  const packageInfoVersion = document.getElementById('packageInfoVersion');
-  const packageInfoDescription = document.getElementById('packageInfoDescription');
-  const packageInfoAuthor = document.getElementById('packageInfoAuthor');
-  const packageInfoDependencies = document.getElementById('packageInfoDependencies');
-  const packageInfoKeywords = document.getElementById('packageInfoKeywords');
-  const packageInfoLicense = document.getElementById('packageInfoLicense');
-
-  const rowAddToVccButtons = document.querySelectorAll('.rowAddToVccButton');
-  rowAddToVccButtons.forEach((button) => {
-    button.addEventListener('click', () => window.location.assign(`vcc://vpm/addRepo?url=${encodeURIComponent(LISTING_URL)}`));
-  });
-
-  const rowPackageInfoButton = document.querySelectorAll('.rowPackageInfoButton');
-  rowPackageInfoButton.forEach((button) => {
-    button.addEventListener('click', e => {
-      const packageId = e.currentTarget.dataset.packageId;
-      const packageInfo = PACKAGES?.[packageId];
-      if (!packageInfo) {
-        console.error(`Did not find package ${packageId}. Packages available:`, PACKAGES);
-        return;
-      }
+  document.querySelectorAll('.rowPackageInfoButton').forEach((button) => {
+    button.addEventListener('click', (event) => {
+      const packageInfo = PACKAGES[event.currentTarget.dataset.packageId];
+      if (!packageInfo) return;
 
       packageInfoName.textContent = packageInfo.displayName;
-      packageInfoId.textContent = packageId;
+      packageInfoId.textContent = packageInfo.name;
       packageInfoVersion.textContent = `v${packageInfo.version}`;
       packageInfoDescription.textContent = packageInfo.description;
       packageInfoAuthor.textContent = packageInfo.author.name;
-      packageInfoAuthor.href = packageInfo.author.url;
+      packageInfoAuthor.href = packageInfo.author.url || '#';
 
-      if ((packageInfo.keywords?.length ?? 0) === 0) {
-        packageInfoKeywords.parentElement.classList.add('hidden');
-      } else {
-        packageInfoKeywords.parentElement.classList.remove('hidden');
-        packageInfoKeywords.innerHTML = null;
-        packageInfo.keywords.forEach(keyword => {
-          const keywordDiv = document.createElement('div');
-          keywordDiv.classList.add('me-2', 'mb-2', 'badge');
-          keywordDiv.textContent = keyword;
-          packageInfoKeywords.appendChild(keywordDiv);
-        });
-      }
+      packageInfoDependencies.replaceChildren(...Object.entries(packageInfo.dependencies).map(([name, version]) => {
+        const item = document.createElement('li');
+        item.textContent = `${name} @ v${version}`;
+        return item;
+      }));
 
-      if (!packageInfo.license?.length && !packageInfo.licensesUrl?.length) {
-        packageInfoLicense.parentElement.classList.add('hidden');
-      } else {
-        packageInfoLicense.parentElement.classList.remove('hidden');
-        packageInfoLicense.textContent = packageInfo.license ?? 'See License';
-        packageInfoLicense.href = packageInfo.licensesUrl ?? '#';
-      }
+      const keywordSection = packageInfoKeywords.parentElement;
+      keywordSection.classList.toggle('hidden', packageInfo.keywords.length === 0);
+      packageInfoKeywords.replaceChildren(...packageInfo.keywords.map((keyword) => {
+        const tag = document.createElement('span');
+        tag.className = 'badge';
+        tag.textContent = keyword;
+        return tag;
+      }));
 
-      packageInfoDependencies.innerHTML = null;
-      Object.entries(packageInfo.dependencies).forEach(([name, version]) => {
-        const depRow = document.createElement('li');
-        depRow.classList.add('mb-2');
-        depRow.textContent = `${name} @ v${version}`;
-        packageInfoDependencies.appendChild(depRow);
-      });
-
+      const licenseSection = packageInfoLicense.parentElement;
+      const hasLicense = Boolean(packageInfo.license || packageInfo.licensesUrl);
+      licenseSection.classList.toggle('hidden', !hasLicense);
+      packageInfoLicense.textContent = packageInfo.license || 'See license';
+      packageInfoLicense.href = packageInfo.licensesUrl || '#';
       packageInfoModal.hidden = false;
-
-      setTimeout(() => {
-        const height = packageInfoModal.querySelector('.col').clientHeight;
-        modalControl.style.setProperty('--dialog-height', `${height + 14}px`);
-      }, 1);
     });
-  });
-
-  const packageInfoVccUrlFieldCopy = document.getElementById('packageInfoVccUrlFieldCopy');
-  packageInfoVccUrlFieldCopy.addEventListener('click', () => {
-    const vccUrlField = document.getElementById('packageInfoVccUrlField');
-    vccUrlField.select();
-    navigator.clipboard.writeText(vccUrlField.value);
-    vccUrlFieldCopy.appearance = 'accent';
-    setTimeout(() => {
-      vccUrlFieldCopy.appearance = 'neutral';
-    }, 1000);
-  });
-
-  const packageInfoListingHelp = document.getElementById('packageInfoListingHelp');
-  packageInfoListingHelp.addEventListener('click', () => {
-    addListingToVccHelp.hidden = false;
   });
 })();
